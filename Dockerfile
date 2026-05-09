@@ -13,28 +13,28 @@ RUN apt-get update && apt-get install -y \
     nodejs \
     npm
 
-# PHP Extensions
+# PHP extensions
 RUN docker-php-ext-install pdo pdo_mysql mbstring zip exif pcntl
 
-# Enable Apache rewrite
+# Enable apache rewrite
 RUN a2enmod rewrite
 
-# Install Composer
+# Install composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Set working directory
+# Working directory
 WORKDIR /var/www/html
 
 # Copy project
 COPY . .
 
-# Install PHP dependencies
+# Install composer dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Install Node dependencies
+# Install node modules
 RUN npm install
 
-# Build frontend assets
+# Build frontend
 RUN npm run build
 
 # Laravel setup
@@ -42,9 +42,26 @@ RUN cp .env.example .env || true
 
 RUN php artisan key:generate || true
 
-RUN chmod -R 775 storage bootstrap/cache
+# Create writable directories
+RUN mkdir -p storage/framework/cache
+RUN mkdir -p storage/framework/sessions
+RUN mkdir -p storage/framework/views
+RUN mkdir -p storage/logs
+RUN mkdir -p bootstrap/cache
 
-# Apache configuration
+# Permissions
+RUN chmod -R 777 storage bootstrap/cache
+
+# Clear cache
+RUN php artisan config:clear || true
+RUN php artisan cache:clear || true
+RUN php artisan view:clear || true
+RUN php artisan route:clear || true
+
+# Temp directory
+ENV TMPDIR=/tmp
+
+# Apache config
 RUN sed -i 's!/var/www/html!/var/www/html/public!g' \
     /etc/apache2/sites-available/000-default.conf
 
